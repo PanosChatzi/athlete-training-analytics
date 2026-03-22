@@ -1,0 +1,76 @@
+volumes:
+  icu_intervals_data:
+    driver: local
+  kestra_postgres_data:
+    driver: local
+  kestra_data:
+    driver: local
+
+services:
+  pgdatabase:
+    image: postgres:16-alpine # Smaller, faster
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: athlete_training
+    ports:
+      - "5432:5432"
+    volumes:
+      - icu_intervals_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U root" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20 # More retries
+
+  kestra_postgres:
+    image: postgres:16-alpine # Smaller, faster startup
+    volumes:
+      - kestra_postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: k3str4
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U kestra -d kestra" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30 # More generous retries
+      start_period: 30s # Give 30s startup grace
+
+  kestra:
+    image: kestra/kestra:latest
+    command: server standalone
+    volumes:
+      - kestra_data:/app/storage
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      KESTRA_CONFIGURATION: |
+        datasources:
+          postgres:
+            url: jdbc:postgresql://kestra_postgres:5432/kestra
+            driverClassName: org.postgresql.Driver
+            username: kestra
+            password: k3str4
+        kestra:
+          server:
+            basicAuth:
+              username: "admin@kestra.io" # it must be a valid email address
+              password: Admin1234!
+          repository:
+            type: postgres
+          storage:
+            type: local
+            local:
+              basePath: "/app/storage"
+          queue:
+            type: postgres
+          tasks:
+            tmpDir:
+              path: /tmp/kestra-wd/tmp
+          url: http://localhost:8080/
+    ports:
+      - "8080:8080"
+    depends_on:
+      kestra_postgres:
+        condition: service_healthy
