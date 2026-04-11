@@ -41,11 +41,12 @@ services:
   kestra:
     image: kestra/kestra:latest
     command: server standalone
+    user: "root"
     volumes:
       - kestra_data:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock
       - /tmp/kestra-wd:/tmp/kestra-wd
-      - ~/.gcp/workflow-orchestration-credentials.json:/.keys/gcp_creds.json
+      - ~/.gcp/workflow-orchestration-credentials.json:/.gcp/gcp_creds.json
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: '/.gcp/gcp_creds.json'
       KESTRA_CONFIGURATION: |
@@ -69,7 +70,7 @@ services:
           queue:
             type: postgres
           ai:
-            type:gemini
+            type: gemini
             gemini:
               model: "gemini-2.5-flash"
               api-key: ${GEMINI_API_KEY}
