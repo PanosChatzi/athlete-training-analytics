@@ -1,0 +1,16 @@
+id: 04_upload_activities
+namespace: training_analytics
+
+tasks:
+  - id: upload_activities_csv
+    type: io.kestra.plugin.gcp.gcs.Upload
+    from: "{{ read('data/raw/activities.csv') }}"
+    to: "gs://{{kv('GCP_BUCKET_NAME')}}/raw/activities.csv"
+
+pluginDefaults:
+  - type: io.kestra.plugin.gcp
+    values:
+      serviceAccount: "{{secret('GCP_SERVICE_ACCOUNT')}}"
+      projectId: "{{kv('GCP_PROJECT_ID')}}"
+      location: "{{kv('GCP_LOCATION')}}"
+      bucket: "{{kv('GCP_BUCKET_NAME')}}"
