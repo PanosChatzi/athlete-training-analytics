@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: int_activities_enriched
+    description: "Activities with derived columns — unit conversions, TRIMP calculation, date dimensions, activity category"
+    columns:
+      - name: activity_id
+        data_tests:
+          - unique
+          - not_null
+      - name: activity_date
+        data_tests:
+          - not_null
+      - name: week_start
+        data_tests:
+          - not_null
+      - name: activity_category
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Cardio', 'Strength', 'Recovery', 'Other']
+      - name: moving_time_hours
+        data_tests:
+          - not_null
+      - name: calories
+        description: "Total calories burned during the activity"
+      - name: distance_km
+        description: "Null for activities without GPS e.g. WeightTraining"
+      - name: pace_min_per_km
+        description: "Null for non-GPS activities and strength training"
+      - name: trimp_calculated
+        description: "Banister exponential TRIMP integer — null when HR data insufficient"
+      - name: trimp
+        description: "Intervals.icu training load (HRSS-based)"
+      - name: activity_category
+        description: "High-level grouping: Cardio, Strength, Recovery, Other"

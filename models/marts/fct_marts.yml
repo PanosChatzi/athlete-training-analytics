@@ -1,0 +1,77 @@
+version: 2
+
+models:
+  - name: dim_athlete
+    description: "One row per athlete with physiological profile"
+    columns:
+      - name: athlete_id
+        data_tests:
+          - unique
+          - not_null
+      - name: athlete_name
+        data_tests:
+          - not_null
+
+  - name: dim_date
+    description: "Date dimension spanning 2025-2026"
+    columns:
+      - name: date_id
+        data_tests:
+          - unique
+          - not_null
+      - name: full_date
+        data_tests:
+          - not_null
+
+  - name: dim_activity_type
+    description: "One row per activity type with category grouping"
+    columns:
+      - name: activity_type_id
+        data_tests:
+          - unique
+          - not_null
+      - name: activity_type
+        data_tests:
+          - unique
+          - not_null
+      - name: activity_category
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Cardio', 'Strength', 'Recovery', 'Other']
+
+  - name: fct_activities
+    description: "One row per activity — core fact table"
+    columns:
+      - name: activity_id
+        data_tests:
+          - unique
+          - not_null
+      - name: athlete_id
+        data_tests:
+          - not_null
+      - name: activity_date
+        data_tests:
+          - not_null
+      - name: activity_type
+        data_tests:
+          - not_null
+
+  - name: rpt_weekly_training
+    description: "Weekly training aggregates — dashboard tile 2"
+    columns:
+      - name: week_start
+        data_tests:
+          - not_null
+      - name: activity_type
+        data_tests:
+          - not_null
+
+  - name: rpt_training_by_type
+    description: "Training totals by activity type — dashboard tile 1"
+    columns:
+      - name: activity_type
+        data_tests:
+          - unique
+          - not_null
