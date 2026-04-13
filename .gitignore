@@ -284,3 +284,5 @@ secrets.toml
 
 *.csv
 *.ipynb
+
+/.dbt
