@@ -22,7 +22,7 @@ resource "google_storage_bucket" "demo-bucket" {
   lifecycle_rule {
     condition {
       # The GCS bucket uses a 1‑day lifecycle rule to auto‑delete objects, since this is demo data.
-      age = 1
+      age = 30
     }
     action {
       type = "Delete"
