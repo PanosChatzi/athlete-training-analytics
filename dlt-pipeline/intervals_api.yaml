@@ -1,0 +1,36 @@
+auth_info:
+  - information_source: https://intervals.icu/api-docs.html
+    details:
+      - >
+        Basic Authentication is required.
+        Use HTTP Basic Auth where:
+        - Username is the literal string 'API_KEY'
+        - Password is your personal API key from Intervals.icu Settings.
+      - >
+        The Authorization header must be:
+        'Authorization: Basic base64("API_KEY:YOUR_API_KEY")'
+      - >
+        The athlete ID is NOT part of authentication and is only used
+        in the request path (/athlete/{id}/...).
+      - >
+        OAuth Bearer tokens are supported for application-based integrations,
+        but are not required for personal API usage.
+
+base_urls:
+  - information_source: https://intervals.icu/api-docs.html
+    urls:
+      - "https://intervals.icu/api/v1"
+
+endpoints:
+  - information_source: https://intervals.icu/api-docs.html
+    endpoints:
+      - "GET /athlete/{id}/activities"        # JSON list of activities
+      - "GET /athlete/{id}/activities.csv"    # CSV export of activities
+
+curl:
+  - information_source: https://intervals.icu/api-docs.html
+    example:
+      - |
+        curl -X GET "https://intervals.icu/api/v1/athlete/i236215/activities.csv?oldest=2024-03-01&newest=2024-03-31" \
+          -H "Authorization: Basic QVBJX0tFWTo2M2J5dzZybzg2ZzVmd2JpeXExd292NGdz" \
+          -H "Accept: text/csv"

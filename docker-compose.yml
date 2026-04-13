@@ -8,7 +8,7 @@ volumes:
 
 services:
   pgdatabase:
-    image: postgres:16-alpine # Smaller, faster
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: root
@@ -41,10 +41,14 @@ services:
   kestra:
     image: kestra/kestra:latest
     command: server standalone
+    user: "root"
     volumes:
       - kestra_data:/app/storage
       - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/kestra-wd:/tmp/kestra-wd
+      - ~/.gcp/workflow-orchestration-credentials.json:/.gcp/gcp_creds.json
     environment:
+      GOOGLE_APPLICATION_CREDENTIALS: '/.gcp/gcp_creds.json'
       KESTRA_CONFIGURATION: |
         datasources:
           postgres:
@@ -65,6 +69,11 @@ services:
               basePath: "/app/storage"
           queue:
             type: postgres
+          ai:
+            type: gemini
+            gemini:
+              model: "gemini-2.5-flash"
+              api-key: ${GEMINI_API_KEY}
           tasks:
             tmpDir:
               path: /tmp/kestra-wd/tmp
@@ -74,3 +83,4 @@ services:
     depends_on:
       kestra_postgres:
         condition: service_healthy
+    env_file: /workspaces/athlete-training-analytics/keys/.env_encoded

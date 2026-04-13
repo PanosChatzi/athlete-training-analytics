@@ -272,10 +272,19 @@ logs/*.log
 
 docs/notes.md
 docs/checklist.md
+
 # Default .gitignore content added by dbt Cloud# you shouldn't commit these into source control
 # these are the default directory names, adjust/add to fit your needs
 target/
 dbt_packages/
 logs/
 # end dbt Cloud content
+<<<<<<< HEAD
 dbt_internal_packages/
+=======
+
+secrets.toml
+
+*.csv
+*.ipynb
+>>>>>>> 7ec3d72ace5a198806610669faf8f07cc16c5a97
