@@ -87,7 +87,7 @@ tasks:
       - echo "$GCP_CREDENTIALS_JSON" > /tmp/gcp_creds.json
       - |
         cat > /tmp/profiles.yml << 'EOF'
-        athlete_training_analytics:
+        default:
           target: prod
           outputs:
             prod:

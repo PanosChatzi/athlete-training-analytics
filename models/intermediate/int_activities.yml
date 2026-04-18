@@ -18,8 +18,7 @@ models:
         data_tests:
           - not_null
           - accepted_values:
-              arguments:
-                values: ['Cardio', 'Strength', 'Recovery', 'Other']
+              values: ['Cardio', 'Strength', 'Recovery', 'Other']
       - name: moving_time_hours
         data_tests:
           - not_null
