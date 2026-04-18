@@ -287,9 +287,13 @@ secrets.toml
 
 *.csv
 *.ipynb
+
+CLAUDE.md
 <<<<<<< HEAD
 >>>>>>> 7ec3d72ace5a198806610669faf8f07cc16c5a97
 =======
 
 /.dbt
 >>>>>>> 7d47057025a309a9421c552fdcad54cb499b4302
+
+/scripts

@@ -1,0 +1,98 @@
+id: 05_run_dlt_pipeline
+namespace: training_analytics
+
+tasks:
+
+  # ── Step 1: Fetch from Intervals.icu API → GCS as parquet ─────────────────
+  - id: ingest_to_gcs
+    type: io.kestra.plugin.scripts.python.Script
+    containerImage: python:3.13-slim
+    beforeCommands:
+      - pip install -q "dlt[gs]" requests pyarrow psutil
+    env:
+      ATHLETE_ID: "{{secret('ICU_ATHLETE_ID_1')}}"
+      API_KEY: "{{secret('ICU_API_KEY_1')}}"
+      GCP_BUCKET_NAME: "{{kv('GCP_BUCKET_NAME')}}"
+      GCP_CREDENTIALS_JSON: "{{secret('GCP_SERVICE_ACCOUNT')}}"
+    script: |
+      import csv, io, os, base64
+      import dlt
+      import requests
+
+      athlete_id = os.environ["ATHLETE_ID"]
+      api_key    = os.environ["API_KEY"]
+      bucket     = os.environ["GCP_BUCKET_NAME"]
+
+      with open("/tmp/gcp_creds.json", "w") as f:
+          f.write(os.environ["GCP_CREDENTIALS_JSON"])
+      os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/tmp/gcp_creds.json"
+
+      @dlt.resource(name="activities", write_disposition="replace")
+      def activities_csv():
+          credentials = base64.b64encode(f"API_KEY:{api_key}".encode()).decode()
+          url = f"https://intervals.icu/api/v1/athlete/{athlete_id}/activities.csv"
+          response = requests.get(
+              url,
+              headers={"Authorization": f"Basic {credentials}", "Accept": "text/csv"},
+              params={"oldest": "2020-01-01"},
+          )
+          response.raise_for_status()
+          yield from csv.DictReader(io.StringIO(response.text))
+
+      pipeline = dlt.pipeline(
+          pipeline_name="athlete_pipeline",
+          destination=dlt.destinations.filesystem(
+              bucket_url=f"gs://{bucket}/raw",
+          ),
+          dataset_name="activities",
+          progress="log",
+      )
+      load_info = pipeline.run(activities_csv(), loader_file_format="parquet")
+      print(load_info)
+
+  # ── Step 2: Load parquet from GCS → BigQuery ──────────────────────────────
+  - id: load_external_table
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      CREATE OR REPLACE EXTERNAL TABLE `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.external_activities_all`
+      OPTIONS (
+        format = 'PARQUET',
+        uris = ['gs://{{kv('GCP_BUCKET_NAME')}}/raw/activities/activities/*.parquet']
+      );
+
+  - id: create_non_partitioned_table
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      CREATE OR REPLACE TABLE `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.activities_all_non_partitioned` AS
+      SELECT * FROM `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.external_activities_all`;
+
+  - id: create_partitioned_table
+    type: io.kestra.plugin.gcp.bigquery.Query
+    sql: |
+      CREATE OR REPLACE TABLE `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.activities`
+      PARTITION BY DATE(start_date_local)
+      CLUSTER BY type
+      AS
+      SELECT * FROM `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.activities_all_non_partitioned`;
+
+  # ── Step 3: Trigger dbt Cloud job ─────────────────────────────────────────
+  - id: run_dbt
+    type: io.kestra.plugin.dbt.cloud.TriggerRun
+    accountId: "{{secret('DBT_ACCOUNT_ID')}}"
+    token: "{{secret('DBT_API_TOKEN')}}"
+    jobId: "{{secret('DBT_JOB_ID')}}"
+    wait: true
+
+# ── Monthly schedule ────────────────────────────────────────────────────────
+triggers:
+  - id: monthly_schedule
+    type: io.kestra.plugin.core.trigger.Schedule
+    cron: "0 6 1 * *"    # 6am on the 1st of every month
+
+pluginDefaults:
+  - type: io.kestra.plugin.gcp
+    values:
+      serviceAccount: "{{secret('GCP_SERVICE_ACCOUNT')}}"
+      projectId: "{{kv('GCP_PROJECT_ID')}}"
+      location: "{{kv('GCP_LOCATION')}}"
+      bucket: "{{kv('GCP_BUCKET_NAME')}}"

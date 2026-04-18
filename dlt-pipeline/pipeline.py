@@ -1,0 +1,104 @@
+import base64
+import csv
+import io
+import os
+
+import dlt
+import requests
+from dlt.sources.rest_api import rest_api_resources
+from dlt.sources.rest_api.typing import RESTAPIConfig
+
+
+@dlt.source
+def intervals_icu_source(
+    athlete_id: str,
+    api_key: str,
+    start_date: str = "2020-01-01",
+    end_date: str = None,
+):
+    config: RESTAPIConfig = {
+        "client": {
+            "base_url": "https://intervals.icu/api/v1/",
+            "auth": {
+                "type": "http_basic",
+                "username": "API_KEY",
+                "password": api_key,
+            },
+        },
+        "resource_defaults": {
+            "primary_key": "id",
+            "write_disposition": "merge",
+        },
+        "resources": [
+            {
+                "name": "activities",
+                "endpoint": {
+                    "path": f"athlete/{athlete_id}/activities",
+                    "params": {
+                        "oldest": start_date,
+                        **({"newest": end_date} if end_date else {}),
+                    },
+                },
+            },
+        ],
+    }
+    yield from rest_api_resources(config)
+    yield activities_csv(
+        athlete_id=athlete_id,
+        api_key=api_key,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+@dlt.resource(name="activities_csv", write_disposition="replace")
+def activities_csv(
+    athlete_id: str,
+    api_key: str,
+    start_date: str = "2020-01-01",
+    end_date: str = None,
+):
+    credentials = base64.b64encode(f"API_KEY:{api_key}".encode()).decode()
+    url = f"https://intervals.icu/api/v1/athlete/{athlete_id}/activities.csv"
+    params: dict = {"oldest": start_date}
+    if end_date:
+        params["newest"] = end_date
+
+    response = requests.get(
+        url,
+        headers={
+            "Authorization": f"Basic {credentials}",
+            "Accept": "text/csv",
+        },
+        params=params,
+    )
+    response.raise_for_status()
+    reader = csv.DictReader(io.StringIO(response.text))
+    yield from reader
+
+
+if __name__ == "__main__":
+    # read from environment variables injected by Kestra
+    athlete_id = os.environ["ATHLETE_ID"]
+    api_key    = os.environ["API_KEY"]
+    project_id = os.environ["GCP_PROJECT_ID"]
+    dataset    = os.environ["GCP_DATASET"]
+    location   = os.environ["GCP_LOCATION"]
+
+    pipeline = dlt.pipeline(
+        pipeline_name="athlete_pipeline",
+        destination=dlt.destinations.bigquery(
+            project_id=project_id,
+            location=location,
+        ),
+        dataset_name=dataset,
+        progress="log",
+    )
+
+    load_info = pipeline.run(
+        intervals_icu_source(
+            athlete_id=athlete_id,
+            api_key=api_key,
+        )
+    )
+    print(load_info)
