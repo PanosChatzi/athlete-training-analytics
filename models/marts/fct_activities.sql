@@ -48,7 +48,7 @@ select
     hr_z4_secs, hr_z5_secs, hr_z6_secs, hr_z7_secs,
 
     -- training load
-    training_load,
+    trimp,
     trimp_calculated,
     trimp_edited,
     intensity_factor,
