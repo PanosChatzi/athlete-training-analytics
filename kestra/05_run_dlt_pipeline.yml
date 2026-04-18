@@ -75,19 +75,40 @@ tasks:
       AS
       SELECT * FROM `{{kv('GCP_PROJECT_ID')}}.{{kv('GCP_DATASET')}}.activities_all_non_partitioned`;
 
-  # ── Step 3: Trigger dbt Cloud job ─────────────────────────────────────────
+  # ── Step 3: Run dbt ────────────────────────────────────────────────────────
   - id: run_dbt
-    type: io.kestra.plugin.dbt.cloud.TriggerRun
-    accountId: "{{secret('DBT_ACCOUNT_ID')}}"
-    token: "{{secret('DBT_API_TOKEN')}}"
-    jobId: "{{secret('DBT_JOB_ID')}}"
-    wait: true
+    type: io.kestra.plugin.scripts.shell.Commands
+    containerImage: ghcr.io/dbt-labs/dbt-bigquery:1.9.latest
+    env:
+      GCP_PROJECT_ID: "{{kv('GCP_PROJECT_ID')}}"
+      GCP_DATASET: "{{kv('GCP_DATASET')}}"
+      GCP_CREDENTIALS_JSON: "{{secret('GCP_SERVICE_ACCOUNT')}}"
+    commands:
+      - echo "$GCP_CREDENTIALS_JSON" > /tmp/gcp_creds.json
+      - |
+        cat > /tmp/profiles.yml << 'EOF'
+        athlete_training_analytics:
+          target: prod
+          outputs:
+            prod:
+              type: bigquery
+              method: service-account
+              project: $GCP_PROJECT_ID
+              dataset: $GCP_DATASET
+              location: US
+              keyfile: /tmp/gcp_creds.json
+              threads: 4
+        EOF
+      - git clone https://github.com/PanosChatzi/athlete-training-analytics.git /tmp/dbt_project
+      - cd /tmp/dbt_project && dbt deps --profiles-dir /tmp
+      - cd /tmp/dbt_project && dbt run --profiles-dir /tmp --target prod
+      - cd /tmp/dbt_project && dbt test --profiles-dir /tmp --target prod
 
 # ── Monthly schedule ────────────────────────────────────────────────────────
 triggers:
   - id: monthly_schedule
     type: io.kestra.plugin.core.trigger.Schedule
-    cron: "0 6 1 * *"    # 6am on the 1st of every month
+    cron: "0 6 1 * *"
 
 pluginDefaults:
   - type: io.kestra.plugin.gcp
