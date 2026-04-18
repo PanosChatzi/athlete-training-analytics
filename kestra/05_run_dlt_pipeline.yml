@@ -84,9 +84,9 @@ tasks:
       GCP_DATASET: "{{kv('GCP_DATASET')}}"
       GCP_CREDENTIALS_JSON: "{{secret('GCP_SERVICE_ACCOUNT')}}"
     commands:
-      - echo "$GCP_CREDENTIALS_JSON" > /tmp/gcp_creds.json
+      - printf '%s' "$GCP_CREDENTIALS_JSON" > /tmp/gcp_creds.json
       - |
-        cat > /tmp/profiles.yml << 'EOF'
+        cat > /tmp/profiles.yml << EOF
         default:
           target: prod
           outputs:
